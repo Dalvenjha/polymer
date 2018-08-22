@@ -1,2 +1,0 @@
-# polymer
-polymer tutorial
