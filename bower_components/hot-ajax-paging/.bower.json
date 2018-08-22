@@ -1,0 +1,25 @@
+{
+  "name": "hot-ajax-paging",
+  "description": "Enables paging of data coming from iron-ajax",
+  "main": "hot-ajax-paging.html",
+  "dependencies": {
+    "polymer": "Polymer/polymer#^2.0.0"
+  },
+  "devDependencies": {
+    "iron-demo-helpers": "PolymerElements/iron-demo-helpers#^2.0.0",
+    "web-component-tester": "Polymer/web-component-tester#^6.0.0",
+    "webcomponentsjs": "webcomponents/webcomponentsjs#^1.0.0"
+  },
+  "homepage": "https://github.com/mercmobily/hot-ajax-paging",
+  "version": "0.4.7",
+  "_release": "0.4.7",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.4.7",
+    "commit": "954958a9547dc0b4511142ba838065a0566d39e5"
+  },
+  "_source": "https://github.com/mercmobily/hot-ajax-paging.git",
+  "_target": "^0.4.7",
+  "_originalSource": "mercmobily/hot-ajax-paging",
+  "_direct": true
+}

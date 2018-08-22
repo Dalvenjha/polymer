@@ -1,0 +1,412 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<!--
+`hot-ajax-paging`
+Element to control an iron-ajax element
+
+This element adds paging capabilities to iron-ajax. It also provides _all_ the information a pager element might possibly need to draw itself.
+To use it, simply wrap an iron-ajax widget with it:
+
+    <hot-ajax-paging per-page="10" current-page="{{currentPage}}" pager-data="{{pagerData}}">
+      <iron-ajax url="/stores/polymer" handle-as="json" last-response="{{data}}"></iron-ajax>
+    </hot-ajax-paging>
+
+Interaction with the iron-ajax widget happens as follows:
+
+* **Outgoing:** Whenever current-page changes, a `range` header is added to the `iron-ajax` widget, in the format `items=0-9` which will instruct the server only to return records 0 to 9.
+
+* **Incoming:** Whenever the server responds with results, a header in the format `Content-Range items 0-24/66` is expected, where 66 is the total number of records. This information is used to effectively make the pager functional and properly sized. Before the first AJAX call returns, the pager won't even display (since it doesn't know how many pages it should show). Once the first AJAX call returns, the pager will display with the right information.
+
+## pagerData
+
+The (notifying) pagerData variable is updated every time anything about the pager changes. The `pagerData` variable will have the following fields:
+
+* `items` - An array with the list of items. Each one is an object like this: `{page: 1, current: true}`. There will only be one item with its `current` property set to true
+* `left` - The page linked by the item in the page on the far left
+* `right` - The page linked by the item in the page on the far left
+* `moreToLeft` - set to `true` if the most left item in the pager is not page 1
+* `moreToRight` - set to `true` if the most right item in the pager is not the last page available
+* `jumpNext` - the page number for the next "page"
+* `jumpPrev` - the page number for the previous "page".
+* `from` and `to` - the range of records shown. For example if there are 15 records and the current page is 1, `from` and `to` will be `0` and `1` respectively. For page 2, they will be `2` and `3`, and so on.
+* `perPage` - How many records will are shown in each page
+* `currentPage` - The current page
+* `maxShownPages` - How many "boxes" the pager will display
+* `totalPages` - The total number of pages
+* `totalRecords` - The total number of records
+
+## Setting properties
+
+The pager needs to be set up.
+
+* `maxShownPages` - The maximum number of pages the pager will ever show. Changing this value will implying firing up an AJAX request.
+* `from` and `to` - The range of the records shown. Changing either one of them will fire up a new AJAX request. Also, changing `from` will possibly change `currentPage`
+* `perPage` - How many records are shown in each page. Changing this value will _not_ fire up a new AJAX request. However, `currentPage` will likely change without firing up an AJAX request (since changing perPage will likely mean that you are looking at a different page, but the data is already loaded). Note that only `from` is taken into consideration. So, if you make perPage smaller, you will end up looking at a different page, showing too many records.
+* `currentPage` - The current page. Changing this value will fire up a new AJAX request.
+
+
+@demo demo/index.html
+-->
+
+<dom-module id="hot-ajax-paging">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+  </template>
+
+  <script>
+/* global Polymer,customElements,CustomEvent,Node */
+class HotAjaxPaging extends Polymer.Element {
+  static get is () { return 'hot-ajax-paging' }
+
+  static get properties () {
+    return {
+
+      /**
+       * The iron-ajax element being targeted (for setting request headers according to
+       * the required range, and monitor results to determine the size of the pager
+       */
+      request: Object,
+
+      /**
+       * In terms of data range, the first record fetched in the range. 0 is the first one
+       */
+      from: {
+        type: String,
+        notify: true
+      },
+
+      /**
+       * In terms of data range, the last record fetched in the range.
+       *
+       */
+      to: {
+        type: String,
+        notify: true
+      },
+
+      /**
+       * The number of records that will logicsally fit in a page
+       */
+      perPage: {
+        type: String,
+        notify: true
+      },
+
+      /**
+       * The current page.
+       */
+      currentPage: {
+        type: String,
+        notify: true
+      },
+
+      /**
+       * The size of the pager
+       */
+      maxShownPages: {
+        type: String,
+        value: 5
+      },
+
+      /**
+       * The total number of pages returned by the iron-ajax request
+       */
+      totalPages: {
+        type: Number,
+        notify: true,
+        readOnly: true
+      },
+
+      /**
+       * The total number of records returned by the iron-ajax request
+       *
+       */
+      totalRecords: {
+        type: Number,
+        notify: true,
+        readOnly: true
+
+      },
+
+      /**
+       * The pager data. This can be used by a pager widget (for example
+       * hot-pager) to display a pager
+       */
+      pagerData: {
+        type: Object,
+        notify: true
+      },
+
+      dpager: {
+        type: String,
+        notify: true
+      }
+    }
+  }
+
+  _o (o) { return JSON.stringify(o) }
+
+  static get observers () {
+    return [
+      '_rangeChanged(from,to)',
+      '_currentPageChanged(currentPage)',
+      '_perPageChanged(perPage)',
+      '_calculatePagerData(currentPage,maxShownPages,totalPages)',
+      '_calculateTotalPages(totalRecords,perPage)'
+    ]
+  }
+
+  _calculateTotalPages (totalRecords, perPage) {
+    if (Number(this.perPage) === 0) return
+
+    // Calculate the number of pages
+    this._setTotalPages(Math.floor(Number(totalRecords) / Number(this.perPage)))
+
+    // Add an extra page for leftover results
+    if (Number(totalRecords) % Number(this.perPage)) this._setTotalPages(this.totalPages + 1)
+  }
+
+  _changeTotalRecords (e) {
+    if (e.detail !== this.request.lastRequest) return
+
+    if (this.from === '' || this.to === '') return
+
+    // TODO: Make calculation of range pluggable?
+
+    var range = e.detail.xhr.getResponseHeader('Content-Range')
+    if (range && range !== '') this._setTotalRecords(Number(range.split('/')[1]))
+  }
+
+  _calculatePagerData (currentPage, maxShownPages, totalPages) {
+    // console.log("CALCULATING PAGER DATA");
+
+    var newItems = []
+    var el
+    var left, right
+    var jumpPrev, jumpNext
+
+    currentPage = Number(currentPage)
+    totalPages = Number(totalPages)
+    maxShownPages = Number(maxShownPages)
+
+    // Handy numbers, usefull later
+    var half = Math.floor(maxShownPages / 2)
+
+    // Results are less than pagerMaxSquare: there will be no
+    // centering, but simply all of them shown.
+    // Thanks to this check, the following cases are _guarantee_ to be either
+    // "left is out of range" or "right is out of range", and never both
+    if (totalPages <= maxShownPages) {
+      left = 1
+      right = totalPages
+    } else {
+      // Prentend that the world is perfect, and the result are neatly
+      // surrounded
+      left = currentPage - half
+      right = left + maxShownPages - 1
+
+      // If left is out of range, set it to 0 and re-adjust right
+      if (left < 1) {
+        left = 1
+        right = left + maxShownPages - 1
+
+        // If right is out of range, set it to totalPages and readjust left
+      } else if (right > totalPages) {
+        right = totalPages
+        left = totalPages - maxShownPages + 1
+      }
+    }
+
+    var d = []
+    // Make up the pager data, based on "left" and "right"
+    for (var i = left; i <= right; i++) {
+      el = {}
+      if (i === this.currentPage) el.current = true
+      el.page = i
+      newItems.push(el)
+
+      // This is to create dpager, which can be used to display a
+      // text-only version of the pager for debugging purposes
+      if (el.current) d.push('*' + el.page + '*')
+      else d.push(el.page)
+    }
+
+    var moreToLeft = left !== 1
+    var moreToRight = right < totalPages
+
+    jumpPrev = null
+    if (moreToLeft) {
+      jumpPrev = right - maxShownPages
+      jumpPrev = jumpPrev < 1 ? 1 : jumpPrev
+    }
+    jumpNext = null
+    if (moreToRight) {
+      jumpNext = left + maxShownPages
+      jumpNext = jumpNext > totalPages ? totalPages : jumpNext
+    }
+
+    this.pagerData = {
+      items: newItems,
+
+      moreToLeft: moreToLeft,
+      moreToRight: moreToRight,
+      jumpNext: jumpNext,
+      jumpPrev: jumpPrev,
+      left: left,
+      right: right,
+      from: this.from,
+      to: this.to,
+      perPage: this.perPage,
+      currentPage: this.currentPage,
+      maxShownPages: this.maxShownPages,
+      totalPages: this.totalPages,
+      totalRecords: this.totalRecords
+    }
+
+    this.dpager = d.join(' - ')
+    // console.dir(this.pagerData);
+  }
+
+  // totalPages
+  // currentPage
+  // maxShownPages
+
+  _currentPageChanged () {
+    if (Number(this.currentPage) === 0) return
+    if (Number(this.perPage) === 0) return
+
+    // Adjusts the range to the new values,
+    // Unless _preserveRange is on, which means that even though the page is changing,
+    // the range stays the same.
+    // This happens for example when perPage is changed -- so you are on a different page
+    // keeping the same range
+    if (this._preserveRange) return
+
+    var newPage = Number(this.currentPage)
+    if (newPage < 0) newPage = 0
+
+    // On/off switch of preserveRange will endure that AJAX calls only
+    // happen once (otherwise, it will happen twice, once for `from` and ince for `to`)
+    this._preserveRange = true
+    this.from = (newPage - 1) * this.perPage
+    this._preserveRange = false
+    this.to = Number(this.from) + Number(this.perPage) - 1
+  }
+
+  _perPageChanged (perpage) {
+    if (Number(this.perPage) === 0) return
+
+    // The page changes, but the range won't.
+    this._preserveRange = true
+    this.currentPage = (Math.floor(Number(this.from) || 0) / Number(this.perPage)) + 1
+    this._preserveRange = false
+  }
+
+  // This will make hot-network happy
+  reload () {
+    this.request.generateRequest()
+  }
+
+  // This is the only hook that will actually trigger,
+  // whenever appropriate, an AJAX call
+  _rangeChanged (from, to) {
+    // console.log("IN _rangeChanged!", from, to);
+
+    // Range is being preserved. One of the inner
+    // methods is changing the range but doesn't (yet?) want to
+    // trigger any page recalculation nor AJAX
+    if (this._preserveRange) return
+
+    // If there is no request, it means that the child is not yet ready()ed.
+    // Set the _delayedRangeChanged flag, which will be picked up by `attached()`
+    // which in turn will run `_rangeChanged()` manually
+    if (!this.request) {
+      this._delayedRangeChanged = true
+      return
+    }
+
+    if (typeof this.to === 'undefined') {
+      this._preserveRange = true
+      this.to = Number(this.from) + Number(this.perPage) - 1
+      this._preserveRange = false
+    }
+
+    // Both ranges need to be valid values
+    if (from === '' || to === '') return
+
+    // Recalculate the page number. Note that it will need to
+    // set _preserveRange, or changing page will then affect this very
+    // piece of code...
+    if (Number(this.perPage) !== 0) {
+      this._preserveRange = true
+      this.currentPage = Math.floor(Number(this.from) / Number(this.perPage)) + 1
+      this._preserveRange = false
+    }
+
+    // Reset the "range" header, which will set the range of the call
+    // and re-run the request
+    delete this.request.headers.range
+    this.request.headers.range = 'items=' + this.from + '-' + this.to
+
+    // Make the request!
+    // But only if the request element is there, it has a URL set,
+    // AND it's been run at least once.
+    // This way, the element will only ever respond to user interaction,
+    // and won't interphere with IRON-AJAX's `auto` or any initial loading
+    // in the app
+    if (this.request && this.request.url && this.request.lastRequest) {
+      this.request.generateRequest()
+    }
+  }
+
+  _proxyAjaxEvents (e) {
+    this._calculatePagerData(this.currentPage, this.maxShownPages, this.totalPages)
+    this.dispatchEvent(new CustomEvent(e.type, { bubbles: false, composed: true }))
+  }
+
+  constructor () {
+    super()
+    this._changeTotalRecordsBound = this._changeTotalRecords.bind(this)
+    this._proxyAjaxEventsBound = this._proxyAjaxEvents.bind(this)
+  }
+
+  connectedCallback () {
+    super.connectedCallback()
+
+    this.request = Polymer.FlattenedNodesObserver.getFlattenedNodes(this).find(el => el.nodeType === Node.ELEMENT_NODE)
+    if (!this.request) throw (new Error('Child element not found'))
+
+    this.request.addEventListener('response', this._changeTotalRecordsBound)
+
+    // Add events to be proxied
+    this.request.addEventListener('request', this._proxyAjaxEventsBound)
+    this.request.addEventListener('response', this._proxyAjaxEventsBound)
+    this.request.addEventListener('error', this._proxyAjaxEventsBound)
+
+    if (this._delayedRangeChanged) {
+      // console.log("Running delayed _rateChanged")
+      this._rangeChanged(this.from, this.to)
+      // It will only happen once
+      this._delayedRangeChanged = false
+    }
+  }
+
+  disconnectedCallback () {
+    this.request.removeEventListener('response', this._changeTotalRecordsBound)
+
+    // Remove events to be proxied
+    this.request.removeEventListener('request', this._proxyAjaxEventsBound)
+    this.request.removeEventListener('response', this._proxyAjaxEventsBound)
+    this.request.removeEventListener('error', this._proxyAjaxEventsBound)
+  }
+
+  _catcher (e) {}
+}
+customElements.define(HotAjaxPaging.is, HotAjaxPaging)
+
+  </script>
+</dom-module>

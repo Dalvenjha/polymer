@@ -1,0 +1,7 @@
+{
+  "name": "ejemplo-post",
+  "short_name": "ejemplo-post",
+  "description": "consulta de posts",
+  "start_url": "/",
+  "display": "standalone"
+}

@@ -1,0 +1,164 @@
+<link rel="import" href="../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../../bower_components/paper-card/paper-card.html">
+<link rel="import" href="../../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../../bower_components/paper-item/paper-item-body.html">
+<link rel="import" href="../../bower_components/paper-item/paper-icon-item.html">
+<link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../../bower_components/iron-icons/image-icons.html">
+<link rel="import" href="../../bower_components/paper-badge/paper-badge.html">
+<link rel="import" href="../../bower_components/get-pagination/get-pagination.html">
+
+
+<dom-module id="post-ui">
+  <template>
+
+    <style>
+      :host {
+        display: block;
+      }
+
+      paper-card{
+        width: calc(23% - 30px);
+        margin: 15px;
+        background: #f8f7f6;
+      }
+
+      .bar-top{
+        min-height: 24px;
+        line-height: 24px;
+        text-align: right;
+        margin-bottom: 20px;
+        color: rgba(0,0,0,0.6)!important;
+      }
+
+      .image-holder{
+        position: relative;
+        min-height: 20px;
+        overflow: hidden;
+      }
+
+      strong{
+        color: rgba(0,0,0,0.6)!important;
+      }
+
+      .image-holder img{
+        display: block;
+        position: relative;
+        width: 40%;
+        margin: 15px;
+        margin-top: 0;
+        float: left;
+        height: auto;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      }
+
+      .user-data{
+        text-align: right;
+        padding-right: 15px;
+      }
+
+      .item-name{
+        font-size: 16px;
+        margin-top: 40px;
+      }
+
+      h3{
+        color: #00aeef;
+        text-transform: uppercase;
+        font-size: 14px;
+        clear: both;
+      }
+
+      iframe{
+        height: 160px;
+        width: 96%;
+        margin: 10px auto;
+      }
+
+      .card-content{
+        padding: 5px 15px;
+      }
+
+      .card-content p{
+        float: left;
+        width: 50%;
+        padding: 5px 10px;
+        box-sizing: border-box;
+        font-size: 12px;
+      }
+
+      .separator-footer{
+        text-align: right;
+        background: rgba(0,0,0,0.03);
+        border-top: 1px solid rgba(0,0,0,0.08);
+      }
+
+    </style>
+
+    <template is="dom-repeat" items="{{users}}">
+        <paper-card>
+          <div class="bar-top">
+            <paper-icon-button icon="more-vert" class="right"></paper-icon-button>
+          </div>
+          <div class="image-holder">
+            <img src="https://c1.staticflickr.com/9/8221/8360030698_ff119e6740_b.jpg" alt="#" />
+            <div class="user-data">
+              <div class="item-name">{{item.name}}</div>
+              <div class="item-nick"><strong>{{item.username}}</strong></div>
+            </div>
+          </div>
+          <div class="card-content">
+            <h3>Datos Personales</h3>
+            <p>{{item.email}}</p>
+            <p>{{item.website}}</p>
+            <p>{{item.phone}}</p>
+          </div>
+          <div class="card-content">
+            <h3>datos Geográficos</h3>
+            <p>{{item.address.street}} / {{item.address.suite}} / {{item.address.city}}</p>
+            <div class="map">
+              <iframe src="https://www.google.com/maps/embed?pb=!1m10!1m8!1m3!1d15605.268827401747!2d-77.0166048!3d-12.0904233!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ses!2spe!4v1534954246775" width="400" height="300" frameborder="0" style="border:0" allowfullscreen></iframe>
+            </div>
+          </div>
+          <div class="separator-footer">
+            <paper-icon-button icon="favorite"></paper-icon-button>
+            <paper-icon-button icon="menu"></paper-icon-button>
+            <paper-icon-button icon="star"></paper-icon-button>
+
+          </div>
+        </paper-card>
+    </template>
+  </template>
+
+  <script>
+    /**
+     * `example-list`
+     * list of elements on polymer
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class PostUi extends Polymer.Element {
+      static get is() { return 'post-ui'; }
+      static get properties() {
+        return {
+          users: {
+            type: Array,
+            value: [],
+            observer: '_updatePostUi'
+          }
+        };
+      }
+
+      _updatePostUi(){
+        console.log('_updatePostUi', this.users);
+      }
+
+
+    }
+
+    window.customElements.define(PostUi.is, PostUi);
+  </script>
+</dom-module>

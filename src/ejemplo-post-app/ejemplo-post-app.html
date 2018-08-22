@@ -1,0 +1,38 @@
+<link rel="import" href="../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../post-dm/post-dm.html">
+<link rel="import" href="../post-ui/post-ui.html">
+
+<dom-module id="ejemplo-post-app">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <post-dm users="{{users}}"></post-dm>
+    <post-ui users="{{users}}"></post-ui>
+  </template>
+
+  <script>
+    /**
+     * @customElement
+     * @polymer
+     */
+    class EjemploPostApp extends Polymer.Element {
+      static get is() { return 'ejemplo-post-app'; }
+      static get properties() {
+        return {
+          users: {
+            type: Array,
+            observer: '_updatePost'
+          }
+        };
+      }
+      _updatePost(){
+        console.log('main._updatePost:', this.users)
+      }
+    }
+
+    window.customElements.define(EjemploPostApp.is, EjemploPostApp);
+  </script>
+</dom-module>

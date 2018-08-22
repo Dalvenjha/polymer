@@ -1,0 +1,44 @@
+<link rel="import" href="../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../post-dp/post-dp.html">
+
+<dom-module id="post-dm">
+  <template>
+    <post-dp id="postId" users="{{users}}"></post-dp>
+  </template>
+
+  <script>
+    /**
+     * @customElement
+     * @polymer
+     */
+    class PostDm extends Polymer.Element {
+      static get is() { return 'post-dm'; }
+      constructor(){
+        super();
+        console.log('PostDm.constructor Obtener Post');
+      }
+
+      ready() {
+        super.ready();
+        if(this.$.postId != undefined && this.$.postId != null){
+          this.doRequest();
+        }
+      }
+
+      doRequest(){
+        this.$.postId.requestToPosts();
+      }
+
+      static get properties() {
+        return {
+          users: {
+            type: Array,
+            notify: true
+          }
+        };
+      }
+    }
+
+    window.customElements.define(PostDm.is, PostDm);
+  </script>
+</dom-module>
